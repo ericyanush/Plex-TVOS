@@ -1,10 +1,13 @@
 PODS:
+  - CocoaAsyncSocket (7.4.2)
   - Swifter (1.0.2)
 
 DEPENDENCIES:
+  - CocoaAsyncSocket
   - Swifter (~> 1.0.2)
 
 SPEC CHECKSUMS:
+  CocoaAsyncSocket: f5783bdedd232d91b89769bc4b5a1580aed518ad
   Swifter: 711617abaf291bf64e84284bb0ac50b939aca763
 
 COCOAPODS: 0.39.0

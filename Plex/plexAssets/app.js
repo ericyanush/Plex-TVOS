@@ -13,9 +13,8 @@ App.onLaunch = function(options) {
 
 	evaluateScripts(jsFiles, function(success) {
 		if (success) {
-			//Load up the Plex Sections
-			getSections();
-
+			//Get a listing of local servers
+			getServers();
 		} else {
 			var errorDoc = createAlert("Evaluate scripts error", "Error evaluating external JS files");
 			navigationDocument.presentModal(errorDoc);
@@ -25,29 +24,44 @@ App.onLaunch = function(options) {
 	});
 }
 
-var getSections = function() {
+var getServers = function() {
+	var xhr = new XMLHttpRequest();
+	xhr.open("GET", App.options.TVAppBaseURL + "servers", true)
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState == 4 && xhr.status == 200) {
+			getSections(JSON.parse(xhr.responseText));
+		}
+	}
+	xhr.send();
+}
+
+var getSections = function(servers) {
+	if (servers.length == 0) {
+		var noServersError = createAlert("No Plex Media Servers found localally");
+	}
+
 	App.client = new Plex({
-				hostname: '10.0.1.100',
-				port: 32400,
+				hostname: servers[0].address,
+				port: servers[0].port,
 			});
 		
-			App.client.find('/library/sections', {type: 'movie|show'}).then(function(sections) {
-				//Render out library sections!
-				rL = new ResourceLoader(App.options.BASEURL);
-				rL.loadResource(`${App.options.TVAppBaseURL}Templates/SectionsTemplate.js`, function(resource) {
-					var doc = Presenter.makeDocument(resource);
-					doc.addEventListener("select", sectionSelect);
-					Presenter.pushDocument(doc);
-				}, sections);
+	App.client.find('/library/sections', {type: 'movie|show'}).then(function(sections) {
+		//Render out library sections!
+		rL = new ResourceLoader("http://" + App.client.hostname + ":" + App.client.port);
+		rL.loadResource(`${App.options.TVAppBaseURL}Templates/SectionsTemplate.js`, function(resource) {
+			var doc = Presenter.makeDocument(resource);
+			doc.addEventListener("select", sectionSelect);
+			Presenter.pushDocument(doc);
+		}, sections);
 
-			}, function(err) {
-				console.log(err);
-			});
+	}, function(err) {
+		console.log(err);
+	});
 }
 
 var showVideoSection = function(sectionId) {
 	App.client.find('/library/sections/' + sectionId + '/all').then(function(items) {
-		rL = new ResourceLoader(App.options.BASEURL);
+		rL = new ResourceLoader("http://" + App.client.hostname + ":" + App.client.port);
 		rL.loadResource(`${App.options.TVAppBaseURL}Templates/SectionTemplate.js`, function(resource) {
 			var doc = Presenter.makeDocument(resource);
 			doc.addEventListener("select", itemSelect);
@@ -64,7 +78,7 @@ var showMovieItemDetail = function(itemId) {
 			console.log("Unexepcted response from server, more than one episode for key!");
 			return;
 		}
-		rL = new ResourceLoader(App.options.BASEURL);
+		rL = new ResourceLoader("http://" + App.client.hostname + ":" + App.client.port);
 		rL.loadResource(`${App.options.TVAppBaseURL}Templates/MovieTemplate.js`, function(resource) {
 			var doc = Presenter.makeDocument(resource);
 			doc.addEventListener("select", episodePlay);
@@ -77,7 +91,7 @@ var showMovieItemDetail = function(itemId) {
 
 var showSeasons = function(showId, seriesTitle) {
 	App.client.find('/library/metadata/' + showId + '/children').then(function(seasons) {
-		rL = new ResourceLoader(App.options.BASEURL);
+		rL = new ResourceLoader("http://" + App.client.hostname + ":" + App.client.port);
 		rL.loadResource(`${App.options.TVAppBaseURL}Templates/SeasonsTemplate.js`, function(resource) {
 			var doc = Presenter.makeDocument(resource);
 			doc.addEventListener("select", seasonSelect);
@@ -90,7 +104,7 @@ var showSeasons = function(showId, seriesTitle) {
 
 var showSeasonList = function(seasonId, seriesTitle, seasonTitle) {
 	App.client.find(seasonId).then(function(episodes) {
-		rL = new ResourceLoader(App.options.BASEURL);
+		rL = new ResourceLoader("http://" + App.client.hostname + ":" + App.client.port);
 		rL.loadResource(`${App.options.TVAppBaseURL}Templates/SeasonTemplate.js`, function(resource) {
 			var doc = Presenter.makeDocument(resource);
 			doc.addEventListener("select", episodeSelect);
@@ -107,7 +121,7 @@ var showEpisode = function(episodeId) {
 			console.log("Unexepcted response from server, more than one episode for key!");
 			return;
 		}
-		rL = new ResourceLoader(App.options.BASEURL);
+		rL = new ResourceLoader("http://" + App.client.hostname + ":" + App.client.port);
 		rL.loadResource(`${App.options.TVAppBaseURL}Templates/EpisodeTemplate.js`, function(resource) {
 			var doc = Presenter.makeDocument(resource);
 			doc.addEventListener("select", episodePlay);
@@ -127,7 +141,7 @@ var showOnDeck = function(sectionId) {
 								"recentlyAdded": recentlyAdded,
 								"recentlyViewed": recentlyViewed,
 								"recentlyAired": recentlyAired};
-					rL = new ResourceLoader(App.options.BASEURL);
+					rL = new ResourceLoader("http://" + App.client.hostname + ":" + App.client.port);
 					rL.loadResource(`${App.options.TVAppBaseURL}Templates/OnDeckTemplate.js`, function(resource) {
 						var doc = Presenter.makeDocument(resource);
 						doc.addEventListener("select", episodeSelect);
@@ -165,13 +179,13 @@ var episodeSelect = function(el) {
 }
 
 var episodePlay = function(el) {
-	var videoURL = App.options.BASEURL + el.target.getAttribute('data-video-url');
+	var videoURL = "http://" + App.client.hostname + ":" + App.client.port + el.target.getAttribute('data-video-url');
 	var metadata = JSON.parse(atob(el.target.getAttribute('data-metadata')));
 
 	var player = new Player();
 	var playlist = new Playlist();
 	var mediaItem = new MediaItem("video", videoURL);
-	var thumbURL = App.options.BASEURL + (metadata.hasOwnProperty('parentThumb')? metadata.parentThumb : metadata.thumb);
+	var thumbURL = "http://" + App.client.hostname + ":" + App.client.port + (metadata.hasOwnProperty('parentThumb')? metadata.parentThumb : metadata.thumb);
 	mediaItem.artworkImageURL = thumbURL;
 	mediaItem.description = metadata.summary
 	mediaItem.title = metadata.title;
