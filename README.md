@@ -11,4 +11,5 @@ What works:
 Caveats:
 - Requires media on PMS to be in format directly playable on ATV4 (Direct Play), as Transcoding functionality has not been built into Plex for TVOS
 - Support for a single PMS
-- PMS address is hardcoded in AppDelegate.swift
+- ~~PMS address is hardcoded in AppDelegate.swift~~
+- PMS address used is the first PMS discovered on the local network.
